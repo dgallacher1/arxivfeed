@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>arXiv Filter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0d0f12;
+    --surface:  #13161b;
+    --border:   #1f2530;
+    --border2:  #2a3040;
+    --text:     #c8d0dc;
+    --muted:    #5a6478;
+    --accent:   #4a9eff;
+    --accent2:  #00d4a0;
+    --warn:     #ff7043;
+    --tag-bg:   #1a2035;
+    --mono:     'IBM Plex Mono', monospace;
+    --sans:     'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+  header .subtitle {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    margin-left: auto;
+    transition: background 0.3s;
+  }
+  .status-dot.active { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+  .status-dot.loading { background: var(--accent); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Layout ── */
+  .layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  aside {
+    width: 260px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 16px;
+    gap: 20px;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  textarea#keywords {
+    width: 100%;
+    min-height: 140px;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 10px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  textarea#keywords:focus { border-color: var(--accent); }
+
+  .keyword-hint {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-top: 6px;
+  }
+  .keyword-hint code {
+    font-family: var(--mono);
+    font-size: 10px;
+    background: var(--tag-bg);
+    padding: 1px 4px;
+    border-radius: 2px;
+    color: var(--accent2);
+  }
+
+  /* Feed toggles */
+  .feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .feed-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: var(--bg);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+  }
+  .feed-btn:hover { border-color: var(--border2); color: var(--text); }
+  .feed-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(74,158,255,0.06);
+  }
+  .feed-btn .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .feed-btn.active .dot { background: var(--accent); }
+  .feed-code {
+    font-size: 10px;
+    opacity: 0.7;
+    margin-left: auto;
+  }
+
+  /* Action buttons */
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .btn {
+    padding: 8px 14px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+  .btn-primary:hover { background: #6ab4ff; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border2);
+  }
+  .btn-secondary:hover { color: var(--text); border-color: var(--muted); }
+
+  /* ── Main feed ── */
+  main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+  }
+
+  .feed-header {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 10;
+  }
+  .feed-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .feed-count span { color: var(--accent2); font-weight: 600; }
+
+  .sort-btns {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .sort-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .sort-btn.active { color: var(--accent); border-color: var(--accent); }
+
+  /* Paper cards */
+  .papers {
+    padding: 12px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .paper-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 14px 16px;
+    transition: border-color 0.15s;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .paper-card:hover { border-color: var(--border2); }
+
+  .paper-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .paper-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.4;
+    flex: 1;
+  }
+  .paper-title a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .paper-title a:hover { color: var(--accent); }
+
+  .paper-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 7px;
+  }
+  .arxiv-id {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .feed-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--tag-bg);
+    color: var(--accent);
+    border: 1px solid rgba(74,158,255,0.2);
+  }
+  .match-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(0,212,160,0.08);
+    color: var(--accent2);
+    border: 1px solid rgba(0,212,160,0.2);
+  }
+  .authors {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 7px;
+  }
+  .abstract {
+    font-size: 12px;
+    color: #8a94a8;
+    line-height: 1.6;
+  }
+
+  /* States */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 60vh;
+    color: var(--muted);
+    gap: 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .empty-state .icon { font-size: 32px; opacity: 0.3; }
+
+  .error-banner {
+    margin: 12px 20px;
+    padding: 10px 14px;
+    background: rgba(255,112,67,0.08);
+    border: 1px solid rgba(255,112,67,0.3);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--warn);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>// arXiv Filter</h1>
+  <span class="subtitle">keyword-filtered preprint feed reader</span>
+  <div class="status-dot" id="statusDot"></div>
+</header>
+
+<div class="layout">
+  <aside>
+    <!-- Keywords -->
+    <div>
+      <div class="section-label">Keywords</div>
+      <textarea id="keywords" placeholder="liquid xenon, SiPM&#10;low background &amp;&amp; detector&#10;gaseous TPC, LGAD&#10;ASIC readout">{{ config.keywords }}</textarea>
+      <div class="keyword-hint">
+        One rule per line or comma-separated.<br>
+        Use <code>&amp;&amp;</code> for AND within a rule.<br>
+        Leave empty to show all entries.
+      </div>
+    </div>
+
+    <!-- Feed toggles -->
+    <div>
+      <div class="section-label">arXiv Feeds</div>
+      <div class="feed-list" id="feedList">
+        {% for fid, label in feeds.items() %}
+        <button class="feed-btn {% if fid in config.feeds %}active{% endif %}"
+                data-feed="{{ fid }}"
+                onclick="toggleFeed(this)">
+          <span class="dot"></span>
+          <span>{{ label }}</span>
+          <span class="feed-code">{{ fid }}</span>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" onclick="runFetch()" id="fetchBtn">Fetch Papers</button>
+      <button class="btn btn-secondary" onclick="saveConfig()">Save Config</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="feed-header">
+      <div class="feed-count" id="feedCount">— no results yet —</div>
+      <div class="sort-btns">
+        <button class="sort-btn active" onclick="setSort('feed', this)">by feed</button>
+        <button class="sort-btn" onclick="setSort('title', this)">by title</button>
+      </div>
+    </div>
+    <div id="papers" class="papers">
+      <div class="empty-state">
+        <div class="icon">◈</div>
+        <div>configure keywords &amp; feeds, then fetch</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+let allResults = [];
+let sortMode = 'feed';
+
+function toggleFeed(btn) {
+  btn.classList.toggle('active');
+}
+
+function getActiveFeeds() {
+  return [...document.querySelectorAll('.feed-btn.active')].map(b => b.dataset.feed);
+}
+
+function getKeywords() {
+  return document.getElementById('keywords').value;
+}
+
+function setSort(mode, btn) {
+  sortMode = mode;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderResults(allResults);
+}
+
+async function saveConfig() {
+  const cfg = { keywords: getKeywords(), feeds: getActiveFeeds() };
+  await fetch('/api/config', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(cfg)
+  });
+  const dot = document.getElementById('statusDot');
+  dot.classList.add('active');
+  setTimeout(() => dot.classList.remove('active'), 1500);
+}
+
+async function runFetch() {
+  const feeds = getActiveFeeds();
+  if (!feeds.length) {
+    alert('Select at least one arXiv feed.');
+    return;
+  }
+
+  const btn = document.getElementById('fetchBtn');
+  const dot = document.getElementById('statusDot');
+  btn.disabled = true;
+  btn.textContent = 'Fetching…';
+  dot.className = 'status-dot loading';
+
+  const papersEl = document.getElementById('papers');
+  papersEl.innerHTML = '<div class="empty-state"><div class="icon">◈</div><div>fetching from arXiv…</div></div>';
+
+  try {
+    const resp = await fetch('/api/fetch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ keywords: getKeywords(), feeds })
+    });
+    const data = await resp.json();
+    allResults = data.results;
+    renderResults(allResults);
+
+    if (data.errors.length) {
+      const err = document.createElement('div');
+      err.className = 'error-banner';
+      err.textContent = 'Feed errors: ' + data.errors.join(' | ');
+      papersEl.prepend(err);
+    }
+
+    dot.className = 'status-dot active';
+    setTimeout(() => dot.className = 'status-dot', 2000);
+  } catch(e) {
+    papersEl.innerHTML = `<div class="error-banner">Request failed: ${e.message}</div>`;
+    dot.className = 'status-dot';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Fetch Papers';
+}
+
+function renderResults(results) {
+  const countEl = document.getElementById('feedCount');
+  const papersEl = document.getElementById('papers');
+
+  if (!results.length) {
+    countEl.innerHTML = '— <span>0</span> papers matched —';
+    papersEl.innerHTML = '<div class="empty-state"><div class="icon">◈</div><div>no papers matched your keywords</div></div>';
+    return;
+  }
+
+  let sorted = [...results];
+  if (sortMode === 'feed') {
+    sorted.sort((a,b) => a.feed.localeCompare(b.feed) || a.title.localeCompare(b.title));
+  } else {
+    sorted.sort((a,b) => a.title.localeCompare(b.title));
+  }
+
+  countEl.innerHTML = `<span>${results.length}</span> paper${results.length !== 1 ? 's' : ''} matched`;
+
+  papersEl.innerHTML = sorted.map(p => {
+    const matchTags = p.matched.map(m =>
+      `<span class="match-tag">${escHtml(m)}</span>`
+    ).join('');
+    const authStr = p.authors.length
+      ? p.authors.join(', ') + (p.authors.length === 3 ? ' et al.' : '')
+      : 'Authors unavailable';
+    return `
+      <div class="paper-card">
+        <div class="paper-top">
+          <div class="paper-title">
+            <a href="${escHtml(p.link)}" target="_blank" rel="noopener">${escHtml(p.title)}</a>
+          </div>
+        </div>
+        <div class="paper-meta">
+          ${p.arxiv_id ? `<span class="arxiv-id">arXiv:${escHtml(p.arxiv_id)}</span>` : ''}
+          <span class="feed-tag">${escHtml(p.feed)}</span>
+          ${matchTags}
+        </div>
+        <div class="authors">${escHtml(authStr)}</div>
+        <div class="abstract">${escHtml(p.summary)}</div>
+      </div>`;
+  }).join('');
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
