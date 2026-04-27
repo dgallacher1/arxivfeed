@@ -323,6 +323,9 @@
     font-size: 11px;
     color: var(--muted);
     margin-bottom: 7px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .abstract {
     font-size: 12px;
@@ -367,6 +370,7 @@
   <h1>// arXiv Filter</h1>
   <span class="subtitle">keyword-filtered preprint reader</span>
   <div class="status-dot" id="statusDot"></div>
+  <button class="btn btn-primary" onclick="runFetch()" id="fetchBtnHeader" style="margin-left:8px;padding:6px 14px;font-size:11px;">Fetch Papers</button>
 </header>
 
 <div class="layout">
@@ -464,9 +468,10 @@ async function runFetch() {
   }
 
   const btn = document.getElementById('fetchBtn');
+  const btnH = document.getElementById('fetchBtnHeader');
   const dot = document.getElementById('statusDot');
-  btn.disabled = true;
-  btn.textContent = 'Fetching…';
+  btn.disabled = true; btn.textContent = 'Fetching…';
+  btnH.disabled = true; btnH.textContent = 'Fetching…';
   dot.className = 'status-dot loading';
 
   const papersEl = document.getElementById('papers');
@@ -496,8 +501,8 @@ async function runFetch() {
     dot.className = 'status-dot';
   }
 
-  btn.disabled = false;
-  btn.textContent = 'Fetch Papers';
+  btn.disabled = false; btn.textContent = 'Fetch Papers';
+  btnH.disabled = false; btnH.textContent = 'Fetch Papers';
 }
 
 function renderResults(results) {
