@@ -2,6 +2,7 @@
 
 Simple arXiv RSS feed filtering for key-words with toggleable sources and config saving
 
+![Screenshot of arXivfeed running on local webserver](templates/arxivfeed_example.png)
 
 ## Instructions
 

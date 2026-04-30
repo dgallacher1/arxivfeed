@@ -3,6 +3,7 @@
   "feeds": [
     "physics.ins-det",
     "hep-ex",
+    "hep-ph",
     "nucl-ex"
   ]
 }
